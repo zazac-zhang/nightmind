@@ -186,7 +186,7 @@ mod tests {
 
         assert_eq!(snapshot.session_id, session_id);
         assert_eq!(snapshot.user_id, user_id);
-        assert_eq!(snapshot.state, SessionState::Active);
+        assert_eq!(snapshot.state, SessionState::Warmup);
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
             id: Uuid::new_v4(),
             session_id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
-            state: SessionState::Active,
+            state: SessionState::Warmup,
             messages: vec![],
             created_at: Utc::now(),
             metadata: SessionMetadata::default(),

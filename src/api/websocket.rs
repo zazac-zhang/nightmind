@@ -164,7 +164,7 @@ impl WebSocketSession {
     }
 
     /// Checks if the session should transition to the next state
-    fn should_transition_state(&self) -> bool {
+    pub fn should_transition_state(&self) -> bool {
         // TODO: Implement logic to determine if state should transition
         false
     }
