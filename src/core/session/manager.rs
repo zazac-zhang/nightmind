@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::core::session::state::SessionState;
+use super::SessionState;
 
 /// Active session data
 #[derive(Debug, Clone)]
@@ -70,7 +70,7 @@ impl SessionManager {
         let session = ActiveSession {
             id: session_id,
             user_id,
-            state: SessionState::Active,
+            state: SessionState::Warmup,  // Initial state for new sessions
             started_at: now,
             last_activity: now,
         };

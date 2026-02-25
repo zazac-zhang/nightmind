@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::core::session::state::SessionState;
+use super::SessionState;
 
 /// A snapshot of a session's state
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,7 +172,7 @@ mod tests {
     fn test_snapshot_creation() {
         let session_id = Uuid::new_v4();
         let user_id = Uuid::new_v4();
-        let state = SessionState::Active;
+        let state = SessionState::Warmup;
         let messages = vec![];
         let metadata = SessionMetadata::default();
 
