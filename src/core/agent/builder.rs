@@ -179,6 +179,15 @@ impl AgentBuilder {
     pub fn build(self) -> Result<NightMindAgent> {
         NightMindAgent::new(self.config)
     }
+
+    /// Builds a simple agent without API key validation
+    #[must_use]
+    pub fn build_simple(self) -> NightMindAgent {
+        NightMindAgent {
+            config: self.config,
+            client: reqwest::Client::new(),
+        }
+    }
 }
 
 /// ============================================================================
