@@ -1,0 +1,108 @@
+# ============================================================
+# NightMind Dependency Update
+# ============================================================
+
+name: Dependencies
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 每周一 00:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # ============================================================
+  # 更新 Rust 依赖
+  # ============================================================
+  rust-dependencies:
+    name: Update Rust Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-upgrade
+        run: cargo install cargo-upgrade
+
+      - name: Upgrade dependencies
+        run: |
+          cargo upgrade
+          cargo update
+
+      - name: Check compilation
+        run: cargo check --all-targets
+
+      - name: Run tests
+        run: cargo test --all-features
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update Rust dependencies"
+          title: "chore(deps): update Rust dependencies"
+          body: |
+            Automated dependency update
+
+            - Updated all Rust dependencies to latest compatible versions
+            - Verified compilation and tests pass
+          branch: deps/update-rust
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
+
+  # ============================================================
+  # 更新 Docker 基础镜像
+  # ============================================================
+  docker-dependencies:
+    name: Update Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update Alpine images
+        run: |
+          sed -i 's/FROM alpine:.*$/FROM alpine:latest/g' Dockerfile*
+          sed -i 's/FROM rust:.*$/FROM rust:latest/g' Dockerfile*
+
+      - name: Update PostgreSQL
+        run: |
+          sed -i 's/pgvector\/pgvector:.*$/pgvector\/pgvector:pg16/g' docker-compose*.yml
+
+      - name: Update Redis
+        run: |
+          sed -i 's/redis:.*$/redis:7-alpine/g' docker-compose*.yml
+
+      - name: Update Qdrant
+        run: |
+          sed -i 's/qdrant\/qdrant:.*$/qdrant\/qdrant:v1.8.2/g' docker-compose*.yml
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update Docker base images"
+          title: "chore(deps): update Docker base images"
+          body: |
+            Automated Docker base image update
+
+            - Updated Alpine to latest
+            - Updated PostgreSQL to pg16
+            - Updated Redis to 7-alpine
+            - Updated Qdrant to v1.8.2
+          branch: deps/update-docker
+          delete-branch: true
+          labels: |
+            dependencies
+            docker
+            automated

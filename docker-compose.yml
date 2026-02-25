@@ -1,0 +1,189 @@
+# NightMind 开发环境
+version: '3.8'
+
+services:
+  # ============================================================
+  # NightMind 应用 (可选：也可以在本地运行 cargo run)
+  # ============================================================
+  nightmind:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nightmind-app
+    ports:
+      - "8080:8080"
+    environment:
+      # 数据库
+      - DATABASE_URL=postgresql://nightmind:nightmind_password@postgres:5432/nightmind
+      # Redis
+      - REDIS_URL=redis://redis:6379
+      # Qdrant
+      - QDRANT_URL=http://qdrant:6334
+      # OpenAI (可选：从 .env 文件读取)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # 日志
+      - RUST_LOG=info,nightmind=debug
+      - RUST_BACKTRACE=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+    volumes:
+      # 热重载 (开发模式)
+      - ./src:/app/src:ro
+      - ./Cargo.toml:/app/Cargo.toml:ro
+      - ./Cargo.lock:/app/Cargo.lock:ro
+    restart: unless-stopped
+    networks:
+      - nightmind-net
+    # 开发模式：可以使用 cargo watch 或其他热重载工具
+    # command: cargo watch -x run
+
+  # ============================================================
+  # PostgreSQL - 主数据库
+  # ============================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nightmind-postgres
+    environment:
+      - POSTGRES_DB=nightmind
+      - POSTGRES_USER=nightmind
+      - POSTGRES_PASSWORD=nightmind_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    ports:
+      - "5432:5432"
+    volumes:
+      # 数据持久化
+      - postgres_data:/var/lib/postgresql/data
+      # 初始化脚本
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # 迁移文件
+      - ./migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nightmind -d nightmind"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nightmind-net
+    restart: unless-stopped
+
+  # ============================================================
+  # Redis - 缓存和会话存储
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: nightmind-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - nightmind-net
+    restart: unless-stopped
+
+  # ============================================================
+  # Qdrant - 向量数据库
+  # ============================================================
+  qdrant:
+    image: qdrant/qdrant:v1.8.2
+    container_name: nightmind-qdrant
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__LOG_LEVEL=DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - nightmind-net
+    restart: unless-stopped
+
+  # ============================================================
+  # pgAdmin - PostgreSQL 管理界面 (可选)
+  # ============================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: nightmind-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@nightmind.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - nightmind-net
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # ============================================================
+  # Redis Commander - Redis 管理界面 (可选)
+  # ============================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: nightmind-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - nightmind-net
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # ============================================================
+  # 可视化服务 (Qdrant Dashboard + 其他)
+  # ============================================================
+  # Qdrant 自带 Web UI 在 http://localhost:6333/dashboard
+
+# ============================================================
+# 网络配置
+# ============================================================
+networks:
+  nightmind-net:
+    name: nightmind-network
+    driver: bridge
+
+# ============================================================
+# 数据卷
+# ============================================================
+volumes:
+  postgres_data:
+    name: nightmind-postgres-data
+  redis_data:
+    name: nightmind-redis-data
+  qdrant_data:
+    name: nightmind-qdrant-data
+  pgadmin_data:
+    name: nightmind-pgadmin-data

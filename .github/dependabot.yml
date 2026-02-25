@@ -1,0 +1,96 @@
+# ============================================================
+# NightMind Dependabot Configuration
+# ============================================================
+
+version: 2
+updates:
+  # ============================================================
+  # Rust 依赖
+  # ============================================================
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "your-username"  # 替换为实际用户名
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    ignore:
+      # 忽略大版本更新 (手动处理)
+      - dependency-name: "tokio"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "axum"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlx"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # 将相关依赖分组到同一个 PR
+      rust-crates:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "axum*"
+          - "tokio*"
+        update-types:
+          - "version-update:semver-patch"
+      web-framework:
+        patterns:
+          - "axum*"
+          - "tower*"
+          - "hyper*"
+        update-types:
+          - "version-update:semver-patch"
+      async-runtime:
+        patterns:
+          - "tokio*"
+        update-types:
+          - "version-update:semver-patch"
+
+  # ============================================================
+  # Docker 依赖
+  # ============================================================
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # 忽略大版本更新
+      - dependency-name: "rust"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "alpine"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "redis"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "qdrant/qdrant"
+        update-types: ["version-update:semver-major"]
+
+  # ============================================================
+  # GitHub Actions
+  # ============================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
