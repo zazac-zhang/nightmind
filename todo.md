@@ -21,19 +21,19 @@
   - [x] `services/` - 服务层
   - [x] `repository/` - 数据访问层
   - [x] `config/` - 配置
-- [ ] `doc/` 文档目录
-  - [x] 00-overview.md
-  - [x] 01-architecture.md
-  - [x] 02-core-modules.md
-  - [x] 03-agent-system.md
-  - [x] 04-session-management.md
-  - [x] 05-content-processing.md
-  - [x] 06-integrations.md
-  - [x] 07-data-model.md
-  - [x] 08-api-design.md
-  - [x] 09-audio-handling.md
-  - [x] 10-deployment.md
-- [ ] `migrations/` 数据库迁移文件
+- [x] `doc/` 文档目录 ✅
+  - [x] 00-overview.md (产品白皮书)
+  - [x] 01-architecture.md (整体架构)
+  - [x] 02-core-modules.md (核心模块)
+  - [x] 03-agent-system.md (Agent 系统)
+  - [x] 04-session-management.md (会话管理)
+  - [x] 05-content-processing.md (内容处理)
+  - [x] 06-integrations.md (外部集成)
+  - [x] 07-data-model.md (数据模型)
+  - [x] 08-api-design.md (API 设计)
+  - [x] 09-audio-handling.md (音频处理)
+  - [x] 10-deployment.md (部署方案)
+- [x] `migrations/` 数据库迁移文件 ✅ (3 个迁移)
 - [ ] `tests/` 测试文件
 
 #### [ ] 依赖配置
@@ -50,34 +50,44 @@
   - [ ] tokio-test
   - [ ] mockall
 
-#### [ ] 数据库 Schema
+#### [x] 数据库 Schema ✅
 
-- [ ] users 表
-- [ ] sessions 表
-- [ ] knowledge_points 表
-- [ ] review_intervals 表
-- [ ] snapshots 表
-- [ ] anki_cards 表
+- [x] users 表
+- [x] sessions 表
+- [x] knowledge_points 表
+- [x] review_intervals 表
+- [x] snapshots 表
+- [x] anki_cards 表
+- [x] 向量索引 (pgvector)
+- [x] 性能优化和实用函数
 
-#### [ ] Docker 开发环境
+#### [x] Docker 开发环境 ✅
 
-- [ ] Dockerfile
-- [ ] docker-compose.yml
-  - [ ] PostgreSQL
-  - [ ] Redis
-  - [ ] Qdrant
+- [x] Dockerfile (生产环境)
+- [x] Dockerfile.dev (开发环境)
+- [x] docker-compose.yml (开发环境)
+- [x] docker-compose.prod.yml (生产环境)
+- [x] .env.example (环境变量模板)
+- [x] Makefile (便捷命令)
+- [x] docker/postgres/init/ (初始化脚本)
+  - [x] PostgreSQL
+  - [x] Redis
+  - [x] Qdrant
 
 ---
 
 ### 待办 📋
 
-#### [ ] CI/CD 配置
+#### [x] CI/CD 配置 ✅
 
-- [ ] GitHub Actions workflow
-  - [ ] Run tests
-  - [ ] Run clippy
-  - [ ] Build Docker image
-- [ ] 自动部署配置
+- [x] GitHub Actions workflow
+  - [x] ci.yml (代码质量、测试、构建)
+  - [x] release.yml (多平台发布)
+  - [x] dependencies.yml (自动更新依赖)
+- [x] Dependabot 配置
+- [x] Issue 模板 (Bug / Feature)
+- [x] Pull Request 模板
+- [x] CONTRIBUTING.md 贡献指南
 
 #### [ ] 基础代码
 
@@ -308,3 +318,22 @@
 ---
 
 **最后更新**: 2024-01-15
+
+---
+
+## 最近更新 ✨
+
+- ✅ 创建 CI/CD 配置
+  - GitHub Actions (3 个 workflow)
+  - Dependabot 自动依赖更新
+  - Issue/PR 模板
+  - CONTRIBUTING.md 贡献指南
+- ✅ 创建 Docker 开发环境配置
+  - docker-compose.yml (3 个核心服务)
+  - Dockerfile + Dockerfile.dev
+  - Makefile (30+ 便捷命令)
+  - .env.example (完整配置模板)
+- ✅ 创建 3 个数据库迁移文件 (001, 002, 003)
+- ✅ 包含 6 个核心表 + pgvector 支持
+- ✅ 添加性能优化索引和实用函数
+- ✅ 完成所有 11 篇架构文档
