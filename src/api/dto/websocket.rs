@@ -14,51 +14,61 @@ use chrono::{DateTime, Utc};
 #[serde(tag = "type", content = "data")]
 pub enum WsMessage {
     /// Text input from user
+    #[serde(rename = "textInput")]
     TextInput {
         #[serde(flatten)]
         data: TextInputData,
     },
     /// Text response from AI
+    #[serde(rename = "textResponse")]
     TextResponse {
         #[serde(flatten)]
         data: TextResponseData,
     },
     /// Session state update
+    #[serde(rename = "stateUpdate")]
     StateUpdate {
         #[serde(flatten)]
         data: StateUpdateData,
     },
     /// Session started
+    #[serde(rename = "sessionStarted")]
     SessionStarted {
         #[serde(flatten)]
         data: SessionData,
     },
     /// Session ended
+    #[serde(rename = "sessionEnded")]
     SessionEnded {
         #[serde(flatten)]
         data: SessionEndData,
     },
     /// Error occurred
+    #[serde(rename = "error")]
     Error {
         #[serde(flatten)]
         data: ErrorData,
     },
     /// Heartbeat
+    #[serde(rename = "heartbeat")]
     Heartbeat {
         #[serde(flatten)]
         data: HeartbeatData,
     },
     /// Knowledge point created
+    #[serde(rename = "knowledgeCreated")]
     KnowledgeCreated {
         #[serde(flatten)]
         data: KnowledgeData,
     },
     /// Acknowledgment
+    #[serde(rename = "ack")]
     Ack {
         #[serde(flatten)]
         data: AckData,
     },
     /// Session pause/resume
+    #[serde(rename = "sessionControl")]
     SessionControl {
         #[serde(flatten)]
         data: SessionControlData,

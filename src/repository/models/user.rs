@@ -301,9 +301,10 @@ mod tests {
         }).unwrap();
 
         assert!(!user.is_admin());
-        assert!(user.can_login()); // Active but not verified is okay for login check
+        // Note: can_login requires both is_active AND is_verified
+        assert!(!user.can_login()); // Not verified yet
         user.is_verified = true;
-        assert!(user.can_login());
+        assert!(user.can_login()); // Now verified, should work
 
         user.role = UserRole::Admin;
         assert!(user.is_admin());
