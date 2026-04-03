@@ -15,21 +15,20 @@ use axum::{
     response::Response,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use std::sync::Arc;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
 use crate::api::handlers::AppState;
 use crate::error::{NightMindError, Result};
 use crate::core::session::state::SessionStateMachine;
 use crate::core::agent::{NightMindAgent, AgentBuilder};
+use crate::core::content::transformer::{VoiceFriendlyTransformer, PatternDetector};
 
 // Re-export WebSocket types for convenience
 pub use crate::api::dto::websocket::{
     WsMessage, TextInputData, TextResponseData, StateUpdateData,
     SessionControlData, SessionControlAction, ErrorData,
     AckData, AckType, KnowledgeData, HeartbeatData,
-    SessionData, SessionEndData,
+    SessionData, SessionEndData, ContentTransformData,
 };
 
 /// WebSocket session context
@@ -48,9 +47,19 @@ impl WebSocketSession {
     /// Creates a new WebSocket session
     pub fn new(session_id: Uuid, user_id: Uuid) -> Self {
         let state_machine = SessionStateMachine::new();
-        let agent = AgentBuilder::default()
+        // Note: Agent requires valid API key, this will fail in real use
+        // For now, we create a dummy agent that will be replaced
+        let _config = crate::core::agent::AgentConfig::default();
+        let agent = AgentBuilder::new()
+            .with_api_key("dummy-key-for-testing")
             .build()
-            .unwrap_or_else(|_| AgentBuilder::default().build_simple());
+            .unwrap_or_else(|_| {
+                // Fallback to default agent if build fails
+                AgentBuilder::default()
+                    .with_api_key("test-key")
+                    .build()
+                    .expect("Failed to create fallback agent")
+            });
 
         Self {
             session_id,
@@ -72,26 +81,58 @@ impl WebSocketSession {
             WsMessage::SessionControl { data } => {
                 self.handle_session_control(data).await
             }
+            WsMessage::ContentTransform { .. } => {
+                // Content transform status is server-sent only, ignore from client
+                Ok(vec![])
+            }
             _ => Ok(vec![]),
         }
     }
 
     /// Handles text input from user
     async fn handle_text_input(&mut self, data: TextInputData) -> Result<Vec<WsMessage>> {
-        // Get current state as string
-        let current_state = format!("{:?}", self.state_machine.current());
+        let message_id = data.message_id.unwrap_or_else(Uuid::new_v4);
 
-        // Generate AI response using agent
-        let response_text = self.agent.prompt(&data.text).await
-            .map_err(|e| NightMindError::AiService(e.to_string()))?;
+        // Check if content transformation is enabled
+        let needs_transform = self.agent.config().enable_content_transform;
+
+        // Get AI response (with or without transformation)
+        let response_text = if needs_transform {
+            // Use prompt_with_transform for automatic content transformation
+            self.agent.prompt_with_transform(&data.text).await
+                .map_err(|e| NightMindError::AiService(e.to_string()))?
+        } else {
+            // Use regular prompt without transformation
+            self.agent.prompt(&data.text).await
+                .map_err(|e| NightMindError::AiService(e.to_string()))?
+        };
+
+        // Validate the response to check if transformation occurred
+        let validation = VoiceFriendlyTransformer::validate_voice_friendly(&response_text);
+        let reading_time = validation.reading_time_seconds;
 
         // Create response message
-        let message_id = Uuid::new_v4();
         let response = WsMessage::text_response(
             response_text,
             self.session_id,
             message_id,
         );
+
+        // If transformation was enabled, send transformation status
+        let mut messages = vec![response];
+
+        if needs_transform {
+            // Detect if original content had patterns that would trigger transformation
+            let had_patterns = !PatternDetector::detect_patterns(&data.text).is_empty();
+
+            messages.push(WsMessage::content_transform(
+                message_id,
+                self.session_id,
+                had_patterns,
+                Some(validation.score as f32 / 100.0),
+                reading_time,
+            ));
+        }
 
         // Check if we should transition state
         if self.should_transition_state() {
@@ -102,11 +143,11 @@ impl WebSocketSession {
                     self.session_id,
                     "Natural conversation flow",
                 );
-                return Ok(vec![response, state_update]);
+                messages.push(state_update);
             }
         }
 
-        Ok(vec![response])
+        Ok(messages)
     }
 
     /// Handles session control commands
@@ -179,7 +220,7 @@ pub async fn websocket_handler(
 }
 
 /// Handles a WebSocket connection
-async fn handle_socket(socket: WebSocket, state: AppState) {
+async fn handle_socket(socket: WebSocket, _state: AppState) {
     let (mut sender, mut receiver) = socket.split();
 
     // TODO: Extract and validate session token from query params

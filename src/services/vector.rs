@@ -97,7 +97,7 @@ impl VectorService {
     /// # Errors
     ///
     /// Returns an error if initialization fails
-    pub async fn create_collection(&self, vector_size: u64) -> Result<(), VectorError> {
+    pub async fn create_collection(&self, _vector_size: u64) -> Result<(), VectorError> {
         if !self.connected {
             return Err(VectorError::NotConnected);
         }

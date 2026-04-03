@@ -6,9 +6,9 @@
 //! This module provides database operations for user management.
 
 use super::db::{BaseRepository, Repository};
-use super::models::user::{CreateUser, LoginCredentials, UpdateUser, User, UserProfile};
+use super::models::user::{CreateUser, LoginCredentials, UpdateUser, User};
 use crate::error::{NightMindError, Result};
-use sqlx::{PgPool, Postgres};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 /// User repository trait

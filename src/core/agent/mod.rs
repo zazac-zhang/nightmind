@@ -10,6 +10,9 @@ pub mod builder;
 pub mod prompts;
 pub mod tools;
 
+// Re-export Rig completion trait for convenience
+pub use rig::completion::Prompt;
+
 // Re-export common types
 pub use builder::{
     AgentBuilder, AgentConfig, AgentManager, NightMindAgent,

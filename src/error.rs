@@ -58,6 +58,10 @@ pub enum NightMindError {
     #[error("AI service error: {0}")]
     AiService(String),
 
+    /// Agent build errors
+    #[error("Agent build error: {0}")]
+    AgentBuild(String),
+
     /// Vector database (Qdrant) errors
     #[error("Vector store error: {0}")]
     VectorStore(String),
@@ -120,7 +124,7 @@ impl NightMindError {
             NightMindError::Unauthorized | NightMindError::Auth(_) => StatusCode::UNAUTHORIZED,
             NightMindError::BadRequest(_) => StatusCode::BAD_REQUEST,
             NightMindError::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
-            NightMindError::AiService(_) => StatusCode::SERVICE_UNAVAILABLE,
+            NightMindError::AiService(_) | NightMindError::AgentBuild(_) => StatusCode::SERVICE_UNAVAILABLE,
             NightMindError::Database(_)
             | NightMindError::Redis(_)
             | NightMindError::Internal(_)
@@ -141,6 +145,7 @@ impl NightMindError {
             NightMindError::Database(_) => "DATABASE_ERROR",
             NightMindError::Redis(_) => "REDIS_ERROR",
             NightMindError::AiService(_) => "AI_SERVICE_ERROR",
+            NightMindError::AgentBuild(_) => "AGENT_BUILD_ERROR",
             NightMindError::VectorStore(_) => "VECTOR_STORE_ERROR",
             NightMindError::Config(_) => "CONFIG_ERROR",
             NightMindError::NotFound(_) => "NOT_FOUND",
@@ -204,6 +209,9 @@ impl IntoResponse for NightMindError {
             }
             NightMindError::AiService(e) => {
                 tracing::warn!("AI service error: {}", e);
+            }
+            NightMindError::AgentBuild(e) => {
+                tracing::error!("Agent build error: {}", e);
             }
             NightMindError::NotFound(e) => {
                 tracing::debug!("Not found: {}", e);

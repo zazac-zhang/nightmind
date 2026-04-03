@@ -7,7 +7,7 @@
 
 use sqlx::{PgPool, Executor, Row};
 use std::path::Path;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 use crate::error::{NightMindError, Result};
 

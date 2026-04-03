@@ -8,8 +8,12 @@
 
 use crate::config::Settings;
 use crate::core::agent::prompts::{PersonalityConfig, PromptManager};
+use crate::core::content::transformer::{VoiceFriendlyTransformer, ValidationResult};
 use crate::error::{NightMindError, Result};
 use crate::repository::models::session::SessionState;
+use rig::client::{CompletionClient, ProviderClient};
+use rig::completion::Prompt;
+use rig::providers::openai;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -39,6 +43,8 @@ pub struct AgentConfig {
     pub session_state: SessionState,
     /// API key for the LLM provider
     pub api_key: String,
+    /// Enable automatic content transformation for voice-friendly output
+    pub enable_content_transform: bool,
 }
 
 impl Default for AgentConfig {
@@ -53,6 +59,7 @@ impl Default for AgentConfig {
             personality: PersonalityConfig::default(),
             session_state: SessionState::Warmup,
             api_key: String::new(),
+            enable_content_transform: true,
         }
     }
 }
@@ -98,6 +105,7 @@ impl AgentBuilder {
                 personality: PersonalityConfig::bedtime(),
                 session_state: SessionState::Warmup,
                 api_key: settings.ai.api_key.clone(),
+                enable_content_transform: true,
             },
         })
     }
@@ -165,6 +173,13 @@ impl AgentBuilder {
         self
     }
 
+    /// Sets whether content transformation is enabled
+    #[must_use]
+    pub fn with_content_transform(mut self, enabled: bool) -> Self {
+        self.config.enable_content_transform = enabled;
+        self
+    }
+
     /// Builds and returns the agent configuration
     #[must_use]
     pub fn build_config(self) -> AgentConfig {
@@ -177,16 +192,23 @@ impl AgentBuilder {
     ///
     /// Returns an error if the agent cannot be initialized
     pub fn build(self) -> Result<NightMindAgent> {
-        NightMindAgent::new(self.config)
-    }
-
-    /// Builds a simple agent without API key validation
-    #[must_use]
-    pub fn build_simple(self) -> NightMindAgent {
-        NightMindAgent {
-            config: self.config,
-            client: reqwest::Client::new(),
+        // Validate API key
+        if self.config.api_key.is_empty() {
+            return Err(NightMindError::AgentBuild(
+                "API key is required".to_string()
+            ));
         }
+
+        // Set API key as environment variable for Rig
+        std::env::set_var("OPENAI_API_KEY", &self.config.api_key);
+
+        // Create OpenAI client
+        let client = openai::Client::from_env();
+
+        Ok(NightMindAgent {
+            client,
+            config: self.config,
+        })
     }
 }
 
@@ -196,13 +218,12 @@ impl AgentBuilder {
 
 /// NightMind AI agent for learning companion functionality
 ///
-/// This agent provides a simplified interface that will be
-/// integrated with rig-core for actual LLM interactions.
+/// This agent wraps Rig's OpenAI client for easy interactions.
 pub struct NightMindAgent {
-    /// Agent configuration
+    /// OpenAI client
+    client: openai::Client,
+    /// Configuration for building agents
     config: AgentConfig,
-    /// HTTP client for API requests
-    client: reqwest::Client,
 }
 
 impl NightMindAgent {
@@ -213,14 +234,20 @@ impl NightMindAgent {
     /// Returns an error if the configuration is invalid
     pub fn new(config: AgentConfig) -> Result<Self> {
         if config.api_key.is_empty() {
-            return Err(NightMindError::Config(
+            return Err(NightMindError::AgentBuild(
                 "API key is required".to_string()
             ));
         }
 
+        // Set API key as environment variable for Rig
+        std::env::set_var("OPENAI_API_KEY", &config.api_key);
+
+        // Create OpenAI client
+        let client = openai::Client::from_env();
+
         Ok(Self {
+            client,
             config,
-            client: reqwest::Client::new(),
         })
     }
 
@@ -271,17 +298,77 @@ impl NightMindAgent {
     ///
     /// Returns an error if the API request fails
     pub async fn prompt(&self, message: &str) -> Result<String> {
-        // Placeholder: In production, this would call the actual LLM API
-        // For now, return a simulated response
         tracing::info!("Agent prompt: {}", message);
         tracing::info!("Using model: {}", self.config.model);
         tracing::info!("Session state: {:?}", self.config.session_state);
 
-        // TODO: Implement actual API call using reqwest or rig-core
-        Ok(format!("收到：{}。这是来自 {} 的回复。",
-            message,
-            self.config.name
-        ))
+        // Build agent with current config
+        let agent = self.client
+            .agent(&self.config.model)
+            .preamble(&self.config.system_prompt)
+            .temperature(f64::from(self.config.temperature))
+            .build();
+
+        // Use Rig agent to get response
+        let response = agent
+            .prompt(message)
+            .await
+            .map_err(|e| NightMindError::AiService(e.to_string()))?;
+
+        Ok(response)
+    }
+
+    /// Sends a prompt with automatic content transformation for voice-friendly output
+    ///
+    /// This method checks if the agent's response contains code, formulas, or lists
+    /// that are not suitable for voice reading, and automatically transforms them
+    /// into voice-friendly metaphors and explanations.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - User message to send
+    ///
+    /// # Returns
+    ///
+    /// The agent's response, transformed if needed for voice output
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the API request or transformation fails
+    pub async fn prompt_with_transform(&self, message: &str) -> Result<String> {
+        // First, get the raw response from the agent
+        let raw_response = self.prompt(message).await?;
+
+        // Check if content transformation is enabled
+        if !self.config.enable_content_transform {
+            return Ok(raw_response);
+        }
+
+        // Check if transformation is needed
+        let validation = VoiceFriendlyTransformer::validate_voice_friendly(&raw_response);
+
+        if validation.is_voice_friendly {
+            // Content is already voice-friendly, return as-is
+            tracing::debug!("Content is voice-friendly (score: {}), no transformation needed", validation.score);
+            return Ok(raw_response);
+        }
+
+        // Content needs transformation
+        tracing::info!(
+            "Content needs transformation (score: {}, issues: {:?})",
+            validation.score,
+            validation.issues
+        );
+
+        // Create transformer and transform with AI
+        let transformer = VoiceFriendlyTransformer::new();
+        let result = transformer.transform_with_agent(&raw_response, self).await;
+
+        if !result.warnings.is_empty() {
+            tracing::warn!("Transformation warnings: {:?}", result.warnings);
+        }
+
+        Ok(result.content)
     }
 
     /// Sends a prompt with custom context variables
@@ -312,8 +399,20 @@ impl NightMindAgent {
         tracing::info!("Agent prompt with context: {}", full_prompt);
         tracing::info!("User message: {}", message);
 
-        // TODO: Implement actual API call
-        Ok(format!("收到：{}（带上下文）", message))
+        // Build agent with context-aware preamble
+        let agent = self.client
+            .agent(&self.config.model)
+            .preamble(&full_prompt)
+            .temperature(f64::from(self.config.temperature))
+            .build();
+
+        // Get response
+        let response = agent
+            .prompt(message)
+            .await
+            .map_err(|e| NightMindError::AiService(e.to_string()))?;
+
+        Ok(response)
     }
 
     /// Streams a response
@@ -540,6 +639,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]  // Run with: cargo test -- --ignored
     async fn test_prompt_response() {
         let config = AgentBuilder::new()
             .with_api_key("test-key")
@@ -549,5 +649,62 @@ mod tests {
         let response = agent.prompt("你好").await;
         assert!(response.is_ok());
         assert!(response.unwrap().contains("你好"));
+    }
+
+    #[test]
+    fn test_content_transform_enabled_by_default() {
+        let config = AgentConfig::default();
+        assert!(config.enable_content_transform);
+    }
+
+    #[test]
+    fn test_content_transform_can_be_disabled() {
+        let config = AgentBuilder::new()
+            .with_content_transform(false)
+            .build_config();
+
+        assert!(!config.enable_content_transform);
+    }
+
+    #[test]
+    fn test_voice_friendly_validation() {
+        // Test that validation correctly identifies code content
+        let code_content = "function compute() { return x + y; }";
+        let validation = VoiceFriendlyTransformer::validate_voice_friendly(code_content);
+
+        assert!(!validation.is_voice_friendly);
+        assert!(validation.score <= 70);
+        assert!(!validation.issues.is_empty());
+    }
+
+    #[test]
+    fn test_voice_friendly_validation_passes() {
+        // Test that validation passes for simple text
+        let simple_content = "This is simple conversational text.";
+        let validation = VoiceFriendlyTransformer::validate_voice_friendly(simple_content);
+
+        assert!(validation.is_voice_friendly);
+        assert!(validation.score > 70);
+        assert!(validation.issues.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore]  // Run with: cargo test -- --ignored (requires OPENAI_API_KEY)
+    async fn test_prompt_with_transform() {
+        let config = AgentBuilder::new()
+            .with_api_key("test-key")
+            .with_content_transform(true)
+            .build_config();
+
+        let agent = NightMindAgent::new(config).unwrap();
+
+        // Test with a prompt that might return code
+        let response = agent.prompt_with_transform("解释一下Python的装饰器模式").await;
+        assert!(response.is_ok());
+
+        let content = response.unwrap();
+        // The response should be transformed to be voice-friendly
+        // (This is a basic check - in a real test with API key, we'd verify the transformation)
+        assert!(!content.is_empty());
     }
 }

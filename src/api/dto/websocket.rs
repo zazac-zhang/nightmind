@@ -73,6 +73,12 @@ pub enum WsMessage {
         #[serde(flatten)]
         data: SessionControlData,
     },
+    /// Content transformation status
+    #[serde(rename = "contentTransform")]
+    ContentTransform {
+        #[serde(flatten)]
+        data: ContentTransformData,
+    },
 }
 
 /// User text input data
@@ -217,6 +223,23 @@ pub struct SessionControlData {
     pub session_id: Uuid,
     /// Reason
     pub reason: Option<String>,
+}
+
+/// Content transformation status data
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContentTransformData {
+    /// Message ID being transformed
+    pub message_id: Uuid,
+    /// Session ID
+    pub session_id: Uuid,
+    /// Whether transformation was applied
+    pub transformed: bool,
+    /// Original content snippet
+    pub original_snippet: Option<String>,
+    /// Transformation confidence
+    pub confidence: Option<f32>,
+    /// Reading time in seconds
+    pub reading_time_seconds: u32,
 }
 
 impl WsMessage {
@@ -380,6 +403,27 @@ impl WsMessage {
         }
     }
 
+    /// Creates a content transform status message
+    #[must_use]
+    pub fn content_transform(
+        message_id: Uuid,
+        session_id: Uuid,
+        transformed: bool,
+        confidence: Option<f32>,
+        reading_time_seconds: u32,
+    ) -> Self {
+        Self::ContentTransform {
+            data: ContentTransformData {
+                message_id,
+                session_id,
+                transformed,
+                original_snippet: None,
+                confidence,
+                reading_time_seconds,
+            },
+        }
+    }
+
     /// Checks if message is a heartbeat
     #[must_use]
     pub fn is_heartbeat(&self) -> bool {
@@ -397,6 +441,7 @@ impl WsMessage {
             Self::SessionEnded { data } => Some(data.session_id),
             Self::Heartbeat { data } => Some(data.session_id),
             Self::SessionControl { data } => Some(data.session_id),
+            Self::ContentTransform { data } => Some(data.session_id),
             Self::KnowledgeCreated { .. } => None,
             Self::Error { .. } => None,
             Self::Ack { .. } => None,
