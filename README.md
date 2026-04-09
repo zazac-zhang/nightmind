@@ -2,7 +2,7 @@
 
 > Close your eyes, open your mind.
 
-**基于睡眠认知科学的 AI 伴学 Agent** — 利用睡前黄金窗口期进行深度知识巩固。
+**LLM 驱动的睡前语音学习伴侣** — 帮助广泛自学者通过自然语音对话巩固知识。
 
 ---
 
@@ -29,10 +29,10 @@ make dev
 
 | 特性 | 描述 |
 |------|------|
-| **零交互** | 全语音交互，无需阅读文字 |
-| **认知优先** | 用户专注思考，Agent 处理技术细节 |
-| **无缝恢复** | 随时打断，自动恢复上下文 |
-| **生态集成** | 与 Anki、Obsidian、Notion 无缝对接 |
+| **LLM 驱动** | 用语义理解替代硬性规则，灵活响应 |
+| **语音优先** | 全语音交互，无需视觉界面 |
+| **工具集成** | 与 Anki、Obsidian 双向同步 |
+| **睡眠友好** | 节奏控制、疲劳感知、自然收尾 |
 
 ---
 
@@ -42,8 +42,8 @@ make dev
 语言：Rust (Edition 2024)
 框架：Axum (Web) + Rig (Agent)
 运行时：Tokio
-数据库：PostgreSQL + Redis + Qdrant
-AI: OpenAI GPT-4 + Whisper + TTS
+数据库：PostgreSQL (pgvector) + Redis
+AI: OpenAI GPT-4
 ```
 
 ---
@@ -56,13 +56,13 @@ AI: OpenAI GPT-4 + Whisper + TTS
 │  (handlers, websocket, router, middleware)         │
 ├─────────────────────────────────────────────────────┤
 │                   Core Layer                        │
-│     (agent system, session management, content)     │
+│     (LLM Agent, session management, content)        │
 ├─────────────────────────────────────────────────────┤
 │                 Repository Layer                    │
-│      (database models, user, session, knowledge)    │
+│      (PostgreSQL models, Redis cache)               │
 ├─────────────────────────────────────────────────────┤
 │                 Services Layer                      │
-│     (audio, STT, TTS, integration, vector)          │
+│     (TTS, STT, Anki, Obsidian, vector)              │
 ├─────────────────────────────────────────────────────┤
 │                 Infrastructure                      │
 │        (config, error, logging)                     │
@@ -75,16 +75,14 @@ AI: OpenAI GPT-4 + Whisper + TTS
 
 ## 开发计划
 
-当前状态：**Phase 1** 基础设施建设
+当前状态：**Phase 1** 基础对话
 
 | 阶段 | 目标 | 状态 |
 |------|------|------|
-| Phase 0 | 基础设施搭建 | ✅ |
-| Phase 1 | 配置与错误处理 | 🟡 |
-| Phase 2 | 数据访问层 | 🔲 |
-| Phase 3 | Agent 系统 | 🔲 |
-| Phase 4 | API 层 | 🔲 |
-| Phase 5 | 集成测试 | 🔲 |
+| Phase 1 | WebSocket + LLM 对话 | 🟡 |
+| Phase 2 | 会话管理（简化 3 态） | 🔲 |
+| Phase 3 | Anki/Obsidian 同步 | 🔲 |
+| Phase 4 | TTS/STT 语音交互 | 🔲 |
 
 详见 [开发计划](docs/plan.md)。
 
@@ -94,23 +92,17 @@ AI: OpenAI GPT-4 + Whisper + TTS
 
 ```bash
 # 构建和运行
-make build        # 构建 release
 make dev          # 运行开发服务器
 make dev-watch    # 热重载
+make build        # 构建 release
 
 # 测试
 make test         # 运行所有测试
-make test-coverage # 生成覆盖率报告
 
 # 数据库
+make docker-up    # 启动服务
 make db-migrate   # 运行迁移
 make db-shell     # 连接数据库
-make db-reset     # 重置数据库
-
-# Docker
-make docker-up    # 启动服务
-make docker-down  # 停止服务
-make docker-logs  # 查看日志
 ```
 
 ---
@@ -119,9 +111,9 @@ make docker-logs  # 查看日志
 
 | 文档 | 描述 |
 |------|------|
-| [架构设计](doc/architecture.md) | 整体架构、技术选型、模块划分 |
-| [API 设计](doc/api.md) | WebSocket + REST API 接口定义 |
-| [开发计划](docs/plan.md) | 开发路线图与任务清单 |
+| [架构设计](doc/architecture.md) | 整体架构、技术选型 |
+| [API 设计](doc/api.md) | WebSocket + REST API |
+| [开发计划](docs/plan.md) | MVP 范围、任务清单 |
 
 ---
 
