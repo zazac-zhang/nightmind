@@ -1,4 +1,5 @@
 // Core business logic
 pub mod agent;
-pub mod session;
 pub mod content;
+pub mod memory;
+pub mod session;

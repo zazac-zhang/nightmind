@@ -32,14 +32,21 @@ impl Default for VectorConfig {
 /// Point payload for vector storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorPayload {
+    /// Associated user ID
+    pub user_id: uuid::Uuid,
+
     /// Associated entity ID
     pub entity_id: uuid::Uuid,
+
     /// Entity type (user, knowledge, session, etc.)
     pub entity_type: String,
+
     /// Content title
     pub title: String,
+
     /// Content tags
     pub tags: Vec<String>,
+
     /// Timestamp
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
@@ -83,7 +90,8 @@ impl VectorService {
     ///
     /// Returns an error if connection fails
     pub async fn connect(&mut self) -> Result<(), VectorError> {
-        // Placeholder: Establish connection to Qdrant
+        // TODO: Implement actual Qdrant connection
+        // For now, just mark as connected
         self.connected = true;
         Ok(())
     }
@@ -97,12 +105,13 @@ impl VectorService {
     /// # Errors
     ///
     /// Returns an error if initialization fails
-    pub async fn create_collection(&self, _vector_size: u64) -> Result<(), VectorError> {
+    pub async fn create_collection(&self, vector_size: u64) -> Result<(), VectorError> {
         if !self.connected {
             return Err(VectorError::NotConnected);
         }
 
-        // Placeholder: Create collection
+        // TODO: Implement actual Qdrant collection creation
+        let _ = vector_size;
         Ok(())
     }
 
@@ -117,13 +126,14 @@ impl VectorService {
     /// Returns an error if upsert fails
     pub async fn upsert_points(
         &self,
-        _points: Vec<(uuid::Uuid, Vec<f32>, VectorPayload)>,
+        points: Vec<(uuid::Uuid, Vec<f32>, VectorPayload)>,
     ) -> Result<(), VectorError> {
         if !self.connected {
             return Err(VectorError::NotConnected);
         }
 
-        // Placeholder: Upsert points
+        // TODO: Implement actual Qdrant upsert
+        let _ = points;
         Ok(())
     }
 
@@ -134,21 +144,25 @@ impl VectorService {
     /// * `query_vector` - Vector to search with
     /// * `limit` - Maximum results to return
     /// * `score_threshold` - Minimum similarity score
+    /// * `user_filter` - Optional user ID filter
     ///
     /// # Errors
     ///
     /// Returns an error if search fails
     pub async fn search(
         &self,
-        _query_vector: Vec<f32>,
-        _limit: u64,
-        _score_threshold: f32,
+        query_vector: Vec<f32>,
+        limit: u64,
+        score_threshold: f32,
+        user_filter: Option<uuid::Uuid>,
     ) -> Result<Vec<VectorSearchResult>, VectorError> {
         if !self.connected {
             return Err(VectorError::NotConnected);
         }
 
-        // Placeholder: Search vectors
+        // TODO: Implement actual Qdrant search
+        // For now, return empty results
+        let _ = (query_vector, limit, score_threshold, user_filter);
         Ok(Vec::new())
     }
 
@@ -166,7 +180,7 @@ impl VectorService {
             return Err(VectorError::NotConnected);
         }
 
-        // Placeholder: Delete point
+        // TODO: Implement actual Qdrant delete
         let _ = point_id;
         Ok(())
     }
@@ -181,7 +195,7 @@ impl VectorService {
             return Err(VectorError::NotConnected);
         }
 
-        // Placeholder: Get collection info
+        // TODO: Implement actual Qdrant collection info
         Ok(CollectionInfo {
             points_count: 0,
             vectors_count: 0,
@@ -236,6 +250,7 @@ mod tests {
     #[test]
     fn test_vector_payload() {
         let payload = VectorPayload {
+            user_id: uuid::Uuid::new_v4(),
             entity_id: uuid::Uuid::new_v4(),
             entity_type: "knowledge".to_string(),
             title: "Test".to_string(),
