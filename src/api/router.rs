@@ -21,6 +21,7 @@ use http::header::HeaderName;
 
 use crate::api::handlers::*;
 use crate::config::Settings;
+use crate::core::agent::NightMindAgent;
 use crate::error::{NightMindError, Result};
 
 /// Creates the main application router
@@ -122,16 +123,22 @@ pub fn create_router(settings: &Settings) -> Result<Router> {
 
 /// Creates application state from settings
 fn create_app_state(settings: &Settings) -> Result<AppState> {
+    let agent = Arc::new(
+        NightMindAgent::from_settings(settings)
+            .map_err(|e| NightMindError::Internal(format!("Failed to create agent: {e}")))?,
+    );
+
     Ok(AppState {
         settings: Arc::new(settings.clone()),
         db_pool: Arc::new(
             sqlx::PgPool::connect_lazy(&settings.database.url)
-                .map_err(|e| NightMindError::Internal(format!("Failed to create pool: {}", e)))?
+                .map_err(|e| NightMindError::Internal(format!("Failed to create pool: {e}")))?
         ),
         redis: Arc::new(
             redis::Client::open(settings.redis.url.clone())
                 .unwrap_or_else(|_| redis::Client::open("redis://127.0.0.1/").unwrap())
         ),
+        agent,
     })
 }
 

@@ -15,6 +15,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::api::dto::*;
+use crate::core::agent::NightMindAgent;
 use crate::error::{NightMindError, Result};
 use crate::config::Settings;
 
@@ -27,6 +28,8 @@ pub struct AppState {
     pub db_pool: Arc<sqlx::PgPool>,
     /// Redis client
     pub redis: Arc<redis::Client>,
+    /// AI agent
+    pub agent: Arc<NightMindAgent>,
 }
 
 // ============================================================

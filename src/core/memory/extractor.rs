@@ -424,7 +424,7 @@ impl DailyLearningSummary {
                 "复习{}张卡片，创建{}篇笔记",
                 self.anki_cards_reviewed, self.notes_created
             )),
-            tags: vec!["daily-summary".to_string(), "review".to_string()],
+            tags: Some(vec!["daily-summary".to_string(), "review".to_string()]),
             parent_id: None,
         };
 
@@ -505,7 +505,7 @@ mod tests {
         // Test concept classification
         let content_type =
             extractor.classify_content("This is a definition of ownership", &[]);
-        assert_eq!(content_type, KnowledgeContentType::Fact);
+        assert_eq!(content_type, KnowledgeContentType::Concept);
 
         // Test procedure classification
         let content_type = extractor.classify_content("Step 1: Do this. Step 2: Do that.", &[]);
